@@ -1,0 +1,28 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project and set icon
+        run: |
+          unzip -q FreestyleLauncher.zip
+          IMG=$(ls *.jpg *.jpeg *.png 2>/dev/null | head -n 1 || true)
+          if [ -n "$IMG" ]; then
+            command -v convert >/dev/null || sudo apt-get install -y imagemagick >/dev/null
+            mkdir -p FL/app/src/main/res/mipmap-xxhdpi
+            convert "$IMG" -resize 144x144^ -gravity center -extent 144x144 FL/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          else
+            sed -i 's/android:icon="@mipmap\/ic_launcher" //' FL/app/src/main/AndroidManifest.xml
+          fi
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.7" }
+      - run: gradle assembleDebug
+        working-directory: FL
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Freestyle-Launcher-apk
+          path: FL/app/build/outputs/apk/debug/app-debug.apk
